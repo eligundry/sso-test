@@ -1,0 +1,16 @@
+lasso:
+  allowAllUsers: true
+
+# Auth0
+oauth:
+  provider: oidc
+  client_id: xxx
+  client_secret: xxx
+  auth_url: xxx
+  token_url: xxx
+  user_info_url: xxx
+  scope:
+    - openid
+    - email
+    - profile
+  callback_url: https://lasso.localhost:9090/auth

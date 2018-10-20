@@ -1,0 +1,45 @@
+# This file overrides default nginx HTTPS settings for my.example.com
+# Mount this file as "/var/lib/nginx-conf/my.example.com.ssl.conf.erb"
+
+server {
+    listen 443 ssl http2;
+
+    # domain.name will be "my.example.com", you can also hard-code it.
+    server_name <%= domain.name %>;
+
+    ssl on;
+    ssl_certificate <%= domain.chained_cert_path %>;
+    ssl_certificate_key <%= domain.key_path %>;
+
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    ssl_session_cache shared:SSL:50m;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA;
+    ssl_prefer_server_ciphers on;
+
+    ssl_dhparam <%= dhparam_path %>;
+
+    # Lasso Config
+    auth_request /validate;
+    error_page 401 = @error401;
+
+    location = /validate {
+      proxy_pass http://lasso:9090;
+      proxy_pass_request_body off;
+      proxy_set_header Content-Length "";
+      auth_request_set $auth_resp_x_lasso_user $upstream_http_x_lasso_user;
+      auth_request_set $auth_resp_jwt $upstream_http_x_lasso_jwt;
+      auth_request_set $auth_resp_err $upstream_http_x_lasso_err;
+      auth_request_set $auth_resp_failcount $upstream_http_x_lasso_failcount;
+    }
+
+    location @error401 {
+      return 302 https://lasso.localhost:9090/login=login?url=$scheme://$http_host$request_uri&lasso-failcount=$auth_resp_failcount&X-Lasso-Token=$auth_resp_jwt&error=$auth_resp_err;
+    }
+
+    location / {
+      proxy_pass http://<%= domain.name %>;
+      proxy_set_header Host <%= domain.name %>;
+      proxy_set_header X-Lasso-User $auth_resp_x_lasso_user;
+      auth_request_set $auth_resp_x_lasso_user $upstream_http_x_lasso_user;
+    }
+}

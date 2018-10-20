@@ -1,0 +1,38 @@
+version: '3'
+services:
+  lasso:
+    image: bfoote/lasso
+    container_name: lasso
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./docker/lasso:/config
+      - data_lasso:/data
+
+  proxy:
+    image: steveltn/https-portal:1
+    container_name: https-portal-proxy
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAINS: 'auth.localhost -> http://app:8080, lasso.localhost -> http://lasso:9090'
+      STAGE: local
+    volumes:
+      - data_https_portal:/var/lib/https-portal
+      - ./docker/https-portal/http.conf.erb:/var/lib/nginx-conf/auth.localhost.conf.erb
+      - ./docker/https-portal/ssl.conf.erb:/var/lib/nginx-conf/auth.localhost.ssl.conf.erb
+      - ./docker/https-portal/lasso.ssl.conf.erb:/var/lib/nginx-conf/lasso.localhost.ssl.conf.erb
+      - ./docker/https-portal/lasso.conf.erb:/var/lib/nginx-conf/lasso.localhost.conf.erb
+
+  app:
+    image: php:7-apache
+    container_name: auth-test-app
+    ports:
+      - '8080:80'
+    volumes:
+      - ./app:/var/www/html
+
+volumes:
+  data_lasso: {}
+  data_https_portal: {}
